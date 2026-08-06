@@ -1,0 +1,6 @@
+# Local bind-mount data (created by `make up`, lives outside the repo anyway)
+data/
+
+# Never commit real secrets — replace the placeholders below before pushing
+# if your school's grading flow expects them checked in; otherwise keep this.
+# secrets/*.txt
