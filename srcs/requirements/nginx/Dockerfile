@@ -1,17 +1,13 @@
 FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx \
-    openssl \
-    gettext-base \
-    && rm -rf /var/lib/apt/lists/*
+# nginx        : the web server itself
+# openssl      : to generate our own HTTPS certificate
+# gettext-base : gives us `envsubst`, used below to insert the domain name into the config
+RUN apt-get update && apt-get install -y nginx openssl gettext-base
 
-RUN mkdir -p /etc/nginx/ssl
-
-COPY conf/nginx.conf.template /etc/nginx/nginx.conf.template
-COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY conf/nginx.conf.template /nginx.conf.template
+COPY tools/start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 443
-
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["/start.sh"]

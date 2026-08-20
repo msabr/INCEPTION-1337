@@ -1,46 +1,47 @@
 #!/bin/bash
 set -e
-
-: "${MYSQL_ROOT_PASSWORD_FILE:?MYSQL_ROOT_PASSWORD_FILE is not set}"
-: "${MYSQL_PASSWORD_FILE:?MYSQL_PASSWORD_FILE is not set}"
-: "${MYSQL_DATABASE:?MYSQL_DATABASE is not set}"
-: "${MYSQL_USER:?MYSQL_USER is not set}"
-
-MYSQL_ROOT_PASSWORD="$(cat "$MYSQL_ROOT_PASSWORD_FILE")"
-MYSQL_PASSWORD="$(cat "$MYSQL_PASSWORD_FILE")"
+# Stop the script immediately if any command below fails,
+# instead of continuing and hiding the real error.
 
 mkdir -p /run/mysqld
-chown -R mysql:mysql /run/mysqld /var/lib/mysql
+chown mysql:mysql /run/mysqld
+# MariaDB needs this folder (for its socket file) and needs to own it.
+
+DB_PASSWORD=$(cat "$MYSQL_PASSWORD_FILE")
+# Read the real password out of the secret file. It is never written into
+# this script, an image layer, or docker-compose.yml — only its file PATH is.
 
 if [ ! -d "/var/lib/mysql/mysql" ]; then
-    echo "[init_db] Initializing data directory..."
+    # This folder only exists after MariaDB has been set up once.
+    # If it's missing, this is the container's first ever boot.
+
     mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+    # Create MariaDB's internal system tables.
 
-    echo "[init_db] Starting temporary MariaDB instance for setup..."
     mysqld --skip-networking --socket=/run/mysqld/mysqld.sock --user=mysql &
-    pid="$!"
+    pid=$!
+    # Start MariaDB temporarily, in the background, with networking OFF,
+    # just so we can create our database and user. $! = its process ID.
 
-    echo "[init_db] Waiting for MariaDB to be ready..."
-    until mysqladmin --socket=/run/mysqld/mysqld.sock ping >/dev/null 2>&1; do
+    until mysqladmin --socket=/run/mysqld/mysqld.sock ping 2>/dev/null; do
         sleep 1
     done
+    # Wait (checking once a second) until that temporary server is ready.
 
-    echo "[init_db] Creating database, user, and setting root password..."
-    mysql --socket=/run/mysqld/mysqld.sock -u root <<-EOSQL
-        ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-        CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-        CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-        GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-        FLUSH PRIVILEGES;
-EOSQL
+    mysql --socket=/run/mysqld/mysqld.sock -u root <<-SQL
+        CREATE DATABASE $MYSQL_DATABASE;
+        CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON $MYSQL_DATABASE.* TO '$MYSQL_USER'@'%';
+SQL
+    # Create the WordPress database and a user allowed to use it from
+    # any host ('%'), since WordPress connects from a different container.
 
-    echo "[init_db] Shutting down temporary instance..."
-    mysqladmin --socket=/run/mysqld/mysqld.sock -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
-    wait "$pid" || true
-    echo "[init_db] Initialization complete."
-else
-    echo "[init_db] Data directory already initialized, skipping."
+    mysqladmin --socket=/run/mysqld/mysqld.sock -u root shutdown
+    wait "$pid"
+    # Stop the temporary server and wait for it to fully exit before continuing.
 fi
 
-echo "[init_db] Starting MariaDB in foreground..."
-exec mysqld --user=mysql --datadir=/var/lib/mysql --socket=/run/mysqld/mysqld.sock
+exec mysqld --user=mysql
+# Start MariaDB for real, in the FOREGROUND, replacing this script as PID 1.
+# ("exec" is what makes this PID 1 instead of a background process —
+# required by the subject.)

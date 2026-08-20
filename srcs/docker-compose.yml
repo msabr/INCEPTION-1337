@@ -1,101 +1,78 @@
 services:
+
+  # --- Database ---
   mariadb:
-    build:
-      context: requirements/mariadb
-    image: mariadb:inception
+    build: ./requirements/mariadb        # build our own image, don't pull one
     container_name: mariadb
-    env_file: .env
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_ROOT_PASSWORD_FILE: ${MYSQL_ROOT_PASSWORD_FILE}
-      MYSQL_PASSWORD_FILE: ${MYSQL_PASSWORD_FILE}
-    volumes:
-      - mariadb_data:/var/lib/mysql
     networks:
-      - inception-network
+      - inception                        # so wordpress can reach it by the name "mariadb"
+    volumes:
+      - mariadb_data:/var/lib/mysql      # keep the database files outside the container
+    environment:
+      MYSQL_DATABASE: wordpress          # name of the database to create
+      MYSQL_USER: wp_user                # a non-root user for WordPress to use
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password   # path INSIDE the container to the secret
     secrets:
       - db_password
-      - db_root_password
-    restart: unless-stopped
-    expose:
-      - "3306"
+    restart: unless-stopped              # auto-restart this container if it crashes
 
+  # --- WordPress + PHP-FPM (no NGINX in here) ---
   wordpress:
-    build:
-      context: requirements/wordpress
-    image: wordpress:inception
+    build: ./requirements/wordpress
     container_name: wordpress
-    env_file: .env
-    environment:
-      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
-      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
-      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
-      WORDPRESS_DB_PASSWORD_FILE: ${WORDPRESS_DB_PASSWORD_FILE}
-      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX}
-      DOMAIN_NAME: ${DOMAIN_NAME}
-      WP_TITLE: ${WP_TITLE}
-      WP_ADMIN_USER: ${WP_ADMIN_USER}
-      WP_ADMIN_PASSWORD_FILE: ${WP_ADMIN_PASSWORD_FILE}
-      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
-      WP_USER: ${WP_USER}
-      WP_USER_PASSWORD_FILE: ${WP_USER_PASSWORD_FILE}
-      WP_USER_EMAIL: ${WP_USER_EMAIL}
-    volumes:
-      - wordpress_data:/var/www/html
     networks:
-      - inception-network
-    depends_on:
-      - mariadb
+      - inception
+    volumes:
+      - wordpress_data:/var/www/html     # WordPress files, shared with nginx below
+    environment:
+      DOMAIN_NAME: msabr.42.fr
+      WP_ADMIN_USER: superuser           # must NOT contain "admin" (grading rule)
+      WP_ADMIN_PASSWORD_FILE: /run/secrets/wp_admin_password
+      WP_USER_PASSWORD_FILE: /run/secrets/wp_user_password
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_password
       - wp_admin_password
       - wp_user_password
+    depends_on:
+      - mariadb                          # start the database before wordpress
     restart: unless-stopped
-    expose:
-      - "9000"
 
+  # --- Web server / TLS termination (no WordPress or PHP in here) ---
   nginx:
-    build:
-      context: requirements/nginx
-    image: nginx:inception
+    build: ./requirements/nginx
     container_name: nginx
-    env_file: .env
-    environment:
-      DOMAIN_NAME: ${DOMAIN_NAME}
-    volumes:
-      - wordpress_data:/var/www/html
     networks:
-      - inception-network
+      - inception
+    volumes:
+      - wordpress_data:/var/www/html     # same files as wordpress, so nginx can serve them
+    environment:
+      DOMAIN_NAME: msabr.42.fr
+    ports:
+      - "443:443"                        # the ONLY port exposed to the outside world
     depends_on:
       - wordpress
-    ports:
-      - "443:443"
     restart: unless-stopped
 
 networks:
-  inception-network:
+  inception:                             # private network, containers reach each other by name
     driver: bridge
 
 volumes:
   mariadb_data:
-    driver: local
     driver_opts:
       type: none
-      o: bind
-      device: /home/${LOGIN}/data/mariadb
+      o: bind                            # bind-mount = store directly at a host path, not in Docker's internal storage
+      device: /home/msabr/data/mariadb
   wordpress_data:
-    driver: local
     driver_opts:
       type: none
       o: bind
-      device: /home/${LOGIN}/data/wordpress
+      device: /home/msabr/data/wordpress
 
-secrets:
+secrets:                                 # files on the host that get mounted read-only into containers
   db_password:
     file: ../secrets/db_password.txt
-  db_root_password:
-    file: ../secrets/db_root_password.txt
   wp_admin_password:
     file: ../secrets/wp_admin_password.txt
   wp_user_password:

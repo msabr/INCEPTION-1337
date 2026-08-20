@@ -1,0 +1,5 @@
+[mysqld]
+# By default MariaDB only listens on 127.0.0.1 (itself).
+# 0.0.0.0 makes it listen on every network interface, so the
+# wordpress container can reach it over the "inception" network.
+bind-address = 0.0.0.0
