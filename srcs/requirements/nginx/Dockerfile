@@ -3,7 +3,6 @@ FROM debian:bookworm
 
 RUN  apt update &&  apt install -y nginx openssl && apt install -y netcat-openbsd
 
-
 RUN mkdir -p /etc/nginx/ssl
 
 RUN openssl req -x509 \

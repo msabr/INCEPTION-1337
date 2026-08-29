@@ -3,7 +3,7 @@
 mysqld_safe --skip-networking &
 
 until mysqladmin ping --silent; do
-    sleep 1
+	sleep 1
 done
 
 mysql -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"

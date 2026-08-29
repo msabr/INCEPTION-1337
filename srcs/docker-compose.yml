@@ -2,41 +2,31 @@ services:
     nginx :
         container_name : nginx
         build: ./requirement/nginx
-        ports:
-            - "443:443"
-        depends_on:
-            - wordpress
-        volumes :
-            - wp_vol:/var/www/html/wordpress
-        networks:
-            - inception
+        ports: "443:443"
+        depends_on: wordpress
+        volumes : wp_vol:/var/www/html/wordpress
+        networks: inception
         restart: on-failure
     wordpress:
         container_name : wordpress
         build : ./requirement/wordpress
-        ports:
-            - "9000"
-        depends_on:
-            - mariadb
-        volumes :
-            - wp_vol:/var/www/html/wordpress
-        networks:
-            - inception
+        ports: "9000"
+        depends_on: mariadb
+        volumes : wp_vol:/var/www/html/wordpress
+        networks: inception
         restart: on-failure
     mariadb :
         container_name : mariadb
         build : ./requirement/mariadb
-        ports:
-            - "3306"
-        volumes :
-            - db_vol:/var/lib/mysql
-        networks:
-            - inception
+        ports: "3306"
+        volumes : db_vol:/var/lib/mysql
+        networks: inception
         restart: on-failure
 
 networks:
     inception:
         driver: bridge
+
 volumes :
     db_vol:
         driver: local 
@@ -50,4 +40,3 @@ volumes :
             type: none
             o: bind   
             device: /home/msabr/data/wp
-            
