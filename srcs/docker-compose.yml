@@ -1,79 +1,53 @@
 services:
-
-  # --- Database ---
-  mariadb:
-    build: ./requirements/mariadb        # build our own image, don't pull one
-    container_name: mariadb
-    networks:
-      - inception                        # so wordpress can reach it by the name "mariadb"
-    volumes:
-      - mariadb_data:/var/lib/mysql      # keep the database files outside the container
-    environment:
-      MYSQL_DATABASE: wordpress          # name of the database to create
-      MYSQL_USER: wp_user                # a non-root user for WordPress to use
-      MYSQL_PASSWORD_FILE: /run/secrets/db_password   # path INSIDE the container to the secret
-    secrets:
-      - db_password
-    restart: unless-stopped              # auto-restart this container if it crashes
-
-  # --- WordPress + PHP-FPM (no NGINX in here) ---
-  wordpress:
-    build: ./requirements/wordpress
-    container_name: wordpress
-    networks:
-      - inception
-    volumes:
-      - wordpress_data:/var/www/html     # WordPress files, shared with nginx below
-    environment:
-      DOMAIN_NAME: msabr.42.fr
-      WP_ADMIN_USER: superuser           # must NOT contain "admin" (grading rule)
-      WP_ADMIN_PASSWORD_FILE: /run/secrets/wp_admin_password
-      WP_USER_PASSWORD_FILE: /run/secrets/wp_user_password
-      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/db_password
-    secrets:
-      - db_password
-      - wp_admin_password
-      - wp_user_password
-    depends_on:
-      - mariadb                          # start the database before wordpress
-    restart: unless-stopped
-
-  # --- Web server / TLS termination (no WordPress or PHP in here) ---
-  nginx:
-    build: ./requirements/nginx
-    container_name: nginx
-    networks:
-      - inception
-    volumes:
-      - wordpress_data:/var/www/html     # same files as wordpress, so nginx can serve them
-    environment:
-      DOMAIN_NAME: msabr.42.fr
-    ports:
-      - "443:443"                        # the ONLY port exposed to the outside world
-    depends_on:
-      - wordpress
-    restart: unless-stopped
+    nginx :
+        container_name : nginx
+        build: ./requirement/nginx
+        ports:
+            - "443:443"
+        depends_on:
+            - wordpress
+        volumes :
+            - wp_vol:/var/www/html/wordpress
+        networks:
+            - inception
+        restart: on-failure
+    wordpress:
+        container_name : wordpress
+        build : ./requirement/wordpress
+        ports:
+            - "9000"
+        depends_on:
+            - mariadb
+        volumes :
+            - wp_vol:/var/www/html/wordpress
+        networks:
+            - inception
+        restart: on-failure
+    mariadb :
+        container_name : mariadb
+        build : ./requirement/mariadb
+        ports:
+            - "3306"
+        volumes :
+            - db_vol:/var/lib/mysql
+        networks:
+            - inception
+        restart: on-failure
 
 networks:
-  inception:                             # private network, containers reach each other by name
-    driver: bridge
-
-volumes:
-  mariadb_data:
-    driver_opts:
-      type: none
-      o: bind                            # bind-mount = store directly at a host path, not in Docker's internal storage
-      device: /home/msabr/data/mariadb
-  wordpress_data:
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/msabr/data/wordpress
-
-secrets:                                 # files on the host that get mounted read-only into containers
-  db_password:
-    file: ../secrets/db_password.txt
-  wp_admin_password:
-    file: ../secrets/wp_admin_password.txt
-  wp_user_password:
-    file: ../secrets/wp_user_password.txt
+    inception:
+        driver: bridge
+volumes :
+    db_vol:
+        driver: local 
+        driver_opts:
+            type: none
+            o: bind   
+            device: /home/msabr/data/db
+    wp_vol:
+        driver: local 
+        driver_opts:
+            type: none
+            o: bind   
+            device: /home/msabr/data/wp
+            

@@ -1,13 +1,22 @@
+# dockerfile for nginx  conatainer 
 FROM debian:bookworm
 
-# nginx        : the web server itself
-# openssl      : to generate our own HTTPS certificate
-# gettext-base : gives us `envsubst`, used below to insert the domain name into the config
-RUN apt-get update && apt-get install -y nginx openssl gettext-base
+RUN  apt update &&  apt install -y nginx openssl && apt install -y netcat-openbsd
 
-COPY conf/nginx.conf.template /nginx.conf.template
-COPY tools/start.sh /start.sh
-RUN chmod +x /start.sh
 
-EXPOSE 443
-ENTRYPOINT ["/start.sh"]
+RUN mkdir -p /etc/nginx/ssl
+
+RUN openssl req -x509 \
+    -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/key.pem \
+    -out /etc/nginx/ssl/cert.pem \
+    -days 365 \
+    -nodes \
+    -subj "/CN=msabr.42.fr"
+
+COPY ./conf/nginx.conf /etc/nginx/nginx.conf
+
+COPY ./tools/nginx.sh /nginx.sh
+RUN chmod +x /nginx.sh
+
+ENTRYPOINT ["/nginx.sh"]

@@ -1,17 +1,11 @@
-# Base OS — the project requires Debian or Alpine, not a ready-made database image.
 FROM debian:bookworm
 
-# Install only the database server itself.
-RUN apt-get update && apt-get install -y mariadb-server
+RUN apt update
+RUN apt install -y mariadb-server mariadb-client 
 
-# A one-line config change (see conf/bind.cnf) so MariaDB accepts
-# connections from other containers, not just from itself.
-COPY conf/bind.cnf /etc/mysql/mariadb.conf.d/bind.cnf
+RUN sed -i 's/127.0.0.1/0.0.0.0/' /etc/mysql/mariadb.conf.d/50-server.cnf
 
-# Our startup script — see tools/init_db.sh.
-COPY tools/init_db.sh /init_db.sh
-RUN chmod +x /init_db.sh
+COPY ./tools/mariadb.sh /mariadb.sh
+RUN chmod +x /mariadb.sh
 
-EXPOSE 3306
-# Run our script as PID 1 (required: no shell wrapper, no background process).
-ENTRYPOINT ["/init_db.sh"]
+ENTRYPOINT ["/mariadb.sh"]
