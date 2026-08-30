@@ -15,7 +15,8 @@ RUN openssl req -x509 \
 
 COPY ./conf/nginx.conf /etc/nginx/nginx.conf
 
-COPY ./tools/nginx.sh /nginx.sh
-RUN chmod +x /nginx.sh
+# COPY ./tools/nginx.sh /nginx.sh
+# RUN chmod +x /nginx.sh
 
-ENTRYPOINT ["/nginx.sh"]
+# ENTRYPOINT ["/nginx.sh"]
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

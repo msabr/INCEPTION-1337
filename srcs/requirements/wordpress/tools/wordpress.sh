@@ -1,19 +1,19 @@
 #!/bin/bash
+set -e
 
 cd /var/www/html/wordpress
+mkdir -p /var/www/html/wordpress && chown -R www-data:www-data /var/www/html/wordpress 
 
-until mysqladmin ping -h mariadb -u"$USER_NAME" -p"$DB_USER_PASS" --silent
-do
-    echo "tssna MariaDB tssna ..."
-    sleep 1
+until mysqladmin ping -h mariadb -u"$DB_USER" -p"$DB_USER_PASS" --silent; do
+	echo "waiting for MariaDB..."
+	sleep 1
 done
-
 echo "MariaDB is ready!"
 
-# if [ ! -f /var/www/html/wordpress/wp-config.php ]; then
-#     wp config create --dbname=$DB_NAME --dbuser=$USER_NAME  --dbpass=$DB_USER_PASS --dbhost=mariadb:3306  --allow-root
-#     wp core install --url=$URL --title=Inception --admin_user=$WP_AD_USER --admin_password=$WP_PS_USER --admin_email=$WP_USER_EMAIL --allow-root
-#     wp user create $WP_USER $WP_EMAIL  --role=subscriber --user_pass=$WP_PASS --allow-root
-# fi
+if [ ! -f wp-config.php ]; then
+	wp-cli.phar config create --dbname="$DB_NAME" --dbuser="$DB_USER" --dbpass="$DB_USER_PASS" --dbhost=mariadb:3306 --allow-root
+	wp-cli.phar core install --url="$DOMAIN_NAME" --title="$WP_TITLE" --admin_user="$WP_ADMIN_USER" --admin_password="$WP_ADMIN_PASS" --admin_email="$WP_ADMIN_EMAIL" --allow-root
+	wp-cli.phar user create "$WP_USER_NAME" "$WP_USER_EMAIL" --role=subscriber --user_pass="$WP_USER_PASS" --allow-root
+fi
 
 exec "$@"

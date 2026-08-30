@@ -1,42 +1,67 @@
 services:
-    nginx :
-        container_name : nginx
-        build: ./requirement/nginx
-        ports: "443:443"
-        depends_on: wordpress
-        volumes : wp_vol:/var/www/html/wordpress
-        networks: inception
+
+    nginx:
+        container_name: nginx
+        build: ./requirements/nginx
+        image: nginx:nginx
+        ports:
+            - "443:443"
+        depends_on:
+            - wordpress
+        volumes:
+            - wp_vol:/var/www/html/wordpress
+        networks:
+            - inception
+        env_file:
+            - .env
         restart: on-failure
+
     wordpress:
-        container_name : wordpress
-        build : ./requirement/wordpress
-        ports: "9000"
-        depends_on: mariadb
-        volumes : wp_vol:/var/www/html/wordpress
-        networks: inception
+        container_name: wordpress
+        build: ./requirements/wordpress
+        image: wordpress:wordpress
+        expose:
+            - "9000"
+        depends_on:
+            - mariadb
+        volumes:
+            - wp_vol:/var/www/html/wordpress
+        networks:
+            - inception
+        env_file:
+            - .env
         restart: on-failure
-    mariadb :
-        container_name : mariadb
-        build : ./requirement/mariadb
-        ports: "3306"
-        volumes : db_vol:/var/lib/mysql
-        networks: inception
+
+    mariadb:
+        container_name: mariadb
+        build: ./requirements/mariadb
+        image: mariadb:mariadb
+        expose:
+            - "3306"
+        volumes:
+            - db_vol:/var/lib/mysql
+        networks:
+            - inception
+        env_file:
+            - .env
         restart: on-failure
 
 networks:
     inception:
+        # name : inception
         driver: bridge
 
-volumes :
+volumes:
     db_vol:
-        driver: local 
+        driver: local
         driver_opts:
             type: none
-            o: bind   
+            o: bind
             device: /home/msabr/data/db
+
     wp_vol:
-        driver: local 
+        driver: local
         driver_opts:
             type: none
-            o: bind   
+            o: bind
             device: /home/msabr/data/wp
