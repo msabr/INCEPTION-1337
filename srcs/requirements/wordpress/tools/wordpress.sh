@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+# set -e
 
 cd /var/www/html/wordpress
 mkdir -p /var/www/html/wordpress && chown -R www-data:www-data /var/www/html/wordpress 

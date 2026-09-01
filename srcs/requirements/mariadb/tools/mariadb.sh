@@ -4,12 +4,10 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
 	mariadb-install-db --user=mysql --datadir=/var/lib/mysql
 fi
 
-mysqld_safe --skip-networking &
-
+mysqld_safe & 
 until mysqladmin ping --silent; do
 	sleep 1
 done
-
 
 mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;"
 
@@ -18,11 +16,8 @@ mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_USER_PA
 mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';"
 
 mysqladmin shutdown
-
 until ! mysqladmin ping --silent; do
 	sleep 1
 done
-
-# wait
 
 exec mysqld_safe
