@@ -8,19 +8,9 @@ all :
 clean :
 	docker compose -f srcs/docker-compose.yml stop
 
-fclean : clean
-	docker compose -f srcs/docker-compose.yml rm -f
-
-down: fclean
-	docker compose -f srcs/docker-compose.yml down -v 
+fclean: clean
+	docker compose -f srcs/docker-compose.yml down -v --rmi all
 	sudo rm -rf /home/$(LOGIN)/data/db
 	sudo rm -rf /home/$(LOGIN)/data/wp
 
-mariadb : 
-	docker compose -f srcs/docker-compose.yml up --build -d mariadb
-wordpress : 
-	docker compose -f srcs/docker-compose.yml up --build -d wordpress
-nginx :
-	docker compose -f srcs/docker-compose.yml up --build -d nginx
-	
-re : down all
+re : fclean all

@@ -11,7 +11,7 @@ This document describes how a developer can set up, manage, and understand the t
 ### Configuration & Secrets
 1. Create a `srcs/.env` file. Do not commit this to version control.
 2. Define the following environment variables in `.env`:
-   - `DOMAIN_NAME=msabr.42.fr`
+   - `URL=msabr.42.fr`
    - `DB_NAME`, `USER_NAME`, `DB_USER_PASS`, `DB_ROOT_PASSWORD` (for MariaDB setup)
    - `WP_AD_USER`, `WP_PS_USER`, `WP_USER_EMAIL` (for WordPress admin setup)
    - `WP_USER`, `WP_EMAIL`, `WP_PASS` (for a standard WordPress user)
