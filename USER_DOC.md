@@ -1,36 +1,115 @@
 # User Documentation
 
-This document explains how an end user or administrator can interact with the Inception stack.
+This page tells you, in easy words, how to use the website once it is
+running. You do not need to know Docker to read this.
 
-## Understand the Services
-This infrastructure provides a fully functional, containerized WordPress website running securely over HTTPS. It consists of:
-- **NGINX**: The web server acting as a reverse proxy and the sole entry point via HTTPS (port 443).
-- **WordPress**: The application running on PHP-FPM, processing dynamic web pages.
-- **MariaDB**: The database management system safely storing all WordPress data.
+## 1. What this project gives you
 
-## Start and Stop the Project
-- **To start the project**: Navigate to the root directory and run `make`. This will build the Docker images and launch the containers in the background.
-- **To stop the project**: Run `make clean` to gracefully stop all running containers.
-- **To completely remove the project (including volumes)**: Run `make fclean` or `make down`.
+When the project runs, you get one website made of 3 parts:
 
-## Access the Website and Administration Panel
-Once the project is running:
-- The main website is accessible at: `https://msabr.42.fr`
-- The administration panel is accessible at: `https://msabr.42.fr/wp-admin/`
-*(Note: You will need to accept the self-signed SSL certificate warning in your browser since it is a self-generated local cert).*
+- A **website** you open in your browser (WordPress).
+- An **admin page** where an admin can manage the site.
+- A **database**, hidden behind the scenes, that stores everything
+  (posts, users, settings). You never touch it directly.
 
-## Locate and Manage Credentials
-Credentials (like database passwords and WordPress admin accounts) are strictly managed via environment variables. 
-- You can locate and modify these in the `srcs/.env` file.
-- **Never** commit this file to a public repository. If compromised, change the credentials immediately and rebuild the environment.
+Only the website is open to the outside. The database is not.
 
-## Check Services are Running Correctly
-To verify the infrastructure is running smoothly, execute:
+## 2. Start and stop the project
+
+Run these commands in the project's main folder (where the `Makefile`
+is).
+
+**Start it:**
+
 ```bash
-docker ps 
+make
 ```
-You should see three containers (`nginx`, `wordpress`, `mariadb`) with the status "Up".
-To check the logs of a specific service if it fails to load, run:
+
+**Stop it** (keeps your data):
+
 ```bash
-docker logs <container_name>
+make clean
 ```
+
+**Remove everything, data too:**
+
+```bash
+make fclean
+```
+
+**Start over, clean:**
+
+```bash
+make re
+```
+
+## 3. Open the website and the admin page
+
+**Website:**
+
+```
+https://msabr.42.fr
+```
+
+**Admin page:**
+
+```
+https://msabr.42.fr/wp-admin
+```
+
+The first time, your browser will show a warning about the certificate.
+This is normal. The site uses a self-made certificate, not one from a
+public company. Click "Advanced" then "Continue" (words may not be the
+same in every browser) to open the site.
+
+## 4. Where to find passwords
+
+All logins are in the project's `.env` file, at the root of the
+project. Look for these:
+
+| Name | What it is |
+|---|---|
+| `WP_ADMIN_USER` / `WP_ADMIN_PASS` | Admin login and password |
+| `WP_ADMIN_EMAIL` | Admin email |
+| `WP_USER_NAME` / `WP_USER_PASS` | A second, normal (not admin) login |
+| `WP_USER_EMAIL` | That login's email |
+| `DB_NAME` / `DB_USER` / `DB_USER_PASS` | Database name and login (used by WordPress only) |
+
+To **change** a password: edit `.env`, then run `make re`. This
+rebuilds the project so the new values are used. You can also change
+your own password on the WordPress admin page, under **Users →
+Profile**, without touching `.env`.
+
+Never share the `.env` file. It has real passwords. Do not put it in
+Git.
+
+## 5. Check that everything works
+
+**Check the containers are running:**
+
+```bash
+docker ps
+```
+
+You should see three running containers: `nginx`, `wordpress`, and
+`mariadb`.
+
+**Check the website:**
+
+Open `https://msabr.42.fr`. You should see the real website. Not a
+plain "Welcome to nginx!" page. Not the WordPress setup page.
+
+**Check the admin page:**
+
+Log in at `https://msabr.42.fr/wp-admin` with the admin login from
+`.env`. If you can log in and see the dashboard, it all works.
+
+**If something looks wrong**, check the logs:
+
+```bash
+docker logs nginx
+docker logs wordpress
+docker logs mariadb
+```
+
+For more checks, see `DEV_DOC.md`.

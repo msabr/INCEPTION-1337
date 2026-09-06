@@ -1,141 +1,189 @@
+*This project has been created as part of the 42 curriculum by msabr.*
+
 # Inception
 
-A small infrastructure of 3 Docker containers — NGINX, WordPress (PHP-FPM),
-and MariaDB — each built from its own Dockerfile, wired together with
-Docker Compose.
+## Description
 
-## Requirements
+**Inception** is a school project. The goal is to build a small website
+by hand, using **Docker**, and run it inside a virtual machine.cleanclean
 
-- A Linux VM (or similar) with Docker and the Docker Compose plugin installed.
-- You must be able to write to `/home/msabr` (see "First-time setup" below).
+This project has 3 containers:
 
-## First-time setup
+- **NGINX** – the front door, handles HTTPS
+- **WordPress** – runs the website
+- **MariaDB** – stores the website's data
 
-The project stores all real data at `/home/msabr/data`. That path only
-works if you're logged in as `msabr`, or if it's been created and handed
-to you with the right owner. Run this once:
+Each image is built by hand, starting from `debian:bookworm`. No
+ready-made images are allowed. This means we set up each part ourselves.
 
-```bash
-sudo mkdir -p /home/msabr/data
-sudo chown -R msabr:msabr /home/msabr/data
-```
+## Instructions
 
-Make the startup scripts executable (only needed once, or if you re-clone):
+### What you need
 
-```bash
-chmod +x srcs/requirements/*/tools/*.sh
-```
+- A Linux virtual machine
+- Docker and Docker Compose
+- `sudo` rights (to make folders for saving data)
 
-## Build and run
+### Setup
+
+1. Clone the repo.
+2. Make a `.env` file at the root of the project, next to the
+   `Makefile`. It holds the passwords and settings. See `DEV_DOC.md`
+   for the full list.
+3. Make sure `msabr.42.fr` points to your machine (add it to
+   `/etc/hosts` if needed).
+
+### Build and run
 
 ```bash
 make
 ```
 
-This creates the two data folders (`data/mariadb`, `data/wordpress`) and
-runs `docker compose up --build -d`.
+This makes the data folders and starts all containers.
 
-Check it worked:
+### Stop and clean
 
 ```bash
-docker compose -f srcs/docker-compose.yml ps
+make clean
+make fclean
+make re
 ```
 
-All three containers (`mariadb`, `wordpress`, `nginx`) should say `Up`.
-
-## View the site
-
-Add this line to `/etc/hosts` on the machine you're browsing from
-(pointing at your VM's IP — use `127.0.0.1` if you're testing locally):
+### Open the site
 
 ```
-127.0.0.1   msabr.42.fr
+https://msabr.42.fr
 ```
 
-Then open `https://msabr.42.fr` in a browser. You'll get a certificate
-warning first — that's expected, since it's a self-signed certificate,
-not a real trusted one.
+The certificate is self-made, so the browser will show a warning. This
+is normal. Click "continue" to go on.
 
-- `http://msabr.42.fr` should **fail to connect** (only port 443 is open).
-- `https://msabr.42.fr` should show your WordPress site directly —
-  never the WordPress installation wizard.
+More help:
 
-## Makefile commands
+- **`USER_DOC.md`** – how to use the site and the admin page
+- **`DEV_DOC.md`** – how to build and manage the project
 
-| Command      | What it does                                              |
-|--------------|------------------------------------------------------------|
-| `make`       | Build the images and start all 3 containers               |
-| `make down`  | Stop and remove the containers (keeps your data)           |
-| `make clean` | Same as `down`, plus deletes the stored data               |
-| `make re`    | `clean` then `make` — full reset and rebuild from scratch  |
+## Project description: Docker, files, and choices
 
-## Project layout
+### What Docker does here
+
+Docker builds each part (NGINX, WordPress, MariaDB) as its own
+**image**, using a `Dockerfile`. Then it runs each image as a
+**container**. **Docker Compose** (`srcs/docker-compose.yml`) starts all
+3 containers at once, puts them on one network, and links their
+storage. One command starts (or stops) the whole website.
+
+### Project files
 
 ```
-inception/
+.
+├── DEV_DOC.md
 ├── Makefile
-├── secrets/                       # passwords, read by containers at startup
-│   ├── db_password.txt
-│   ├── wp_admin_password.txt
-│   └── wp_user_password.txt
-└── srcs/
-    ├── docker-compose.yml
-    └── requirements/
-        ├── mariadb/
-        │   ├── Dockerfile
-        │   ├── conf/bind.cnf      # lets MariaDB accept network connections
-        │   └── tools/init_db.sh   # creates the DB + user on first boot
-        ├── nginx/
-        │   ├── Dockerfile
-        │   ├── conf/nginx.conf.template
-        │   └── tools/start.sh     # generates the TLS cert, starts nginx
-        └── wordpress/
-            ├── Dockerfile
-            ├── conf/www.conf      # PHP-FPM pool config
-            └── tools/start.sh     # installs WordPress via WP-CLI on first boot
+├── README.md
+├── srcs
+│   ├── docker-compose.yml
+│   ├── .env
+│   └── requirements
+│       ├── mariadb
+│       │   ├── Dockerfile
+│       │   └── tools
+│       │       └── mariadb.sh
+│       ├── nginx
+│       │   ├── conf
+│       │   │   └── nginx.conf
+│       │   ├── Dockerfile
+│       │   └── tools
+│       │       └── nginx.sh
+│       └── wordpress
+│           ├── Dockerfile
+│           └── tools
+│               └── wordpress.sh
+└── USER_DOC.md
 ```
 
-## Logging in
+Each `Dockerfile` starts with `FROM debian:bookworm`, adds only what is
+needed, then runs a small script. That script sets things up once, then
+keeps the main program running.
 
-- **WordPress admin**: username is `superuser` (deliberately doesn't
-  contain "admin"), password in `secrets/wp_admin_password.txt`.
-- **WordPress regular user**: username `editor`, password in
-  `secrets/wp_user_password.txt` — used to test adding a comment as a
-  non-admin.
-- **MariaDB**, to inspect the database directly:
-  ```bash
-  docker exec -it mariadb mysql -u root
-  ```
-  No password needed for `root` here — MariaDB on Debian trusts the
-  container's own root user automatically (Unix socket authentication).
-  To log in as the WordPress database user instead:
-  ```bash
-  docker exec -it mariadb mysql -u wp_user -p
-  # password is in secrets/db_password.txt
-  ```
+### Virtual Machines vs Docker
 
-## Why things are set up this way
+| | Virtual Machine | Docker |
+|---|---|---|
+| What it is | A full fake computer, with its own OS | A small program that shares the host's OS |
+| Start time | Slow (minutes) | Fast (seconds) |
+| Uses | A lot of space and power | Very little |
+| Isolation | Very strong | Good, but lighter |
+| Use here | The whole project runs in one VM | Each part runs in its own container, inside that VM |
 
-- **Each container ends its startup script with `exec <process>`** so
-  that process becomes PID 1 running in the foreground — no background
-  daemons, no infinite `sleep`/`tail -f` loops.
-- **Passwords never appear in any Dockerfile or in `docker-compose.yml`**
-  — only the *path* to a secret file does; the real value is read from
-  disk at container startup.
-- **Data volumes are host bind-mounts** (`/home/msabr/data/...`), not
-  Docker's internal volume storage, so a VM reboot + `make` doesn't lose
-  anything.
-- **All three images are built `FROM debian:bookworm`** — no
-  pre-built `nginx`, `wordpress`, or `mariadb` images from Docker Hub.
+The VM keeps the project apart from your computer. Docker keeps each
+part apart from the others, inside that VM. We use Docker because it is
+fast and light.
 
-## Troubleshooting
+### Secrets vs Environment Variables
 
-```bash
-docker compose -f srcs/docker-compose.yml logs -f          # all logs
-docker logs mariadb
-docker logs wordpress
-docker logs nginx
-```
+- **Environment variables** are simple values sent to a container, like
+  `DB_NAME=wordpress`. They are easy to use. But other people can see
+  them with the command `docker inspect`.
+- **Docker secrets** are files given only to the containers that need
+  them. They are safer for passwords.
 
-If a container keeps restarting, its log will usually show the exact
-line that failed — paste it back for help rather than guessing.
+This project uses **environment variables**, from one `.env` file. This
+file is not saved in Git. This is simple and works fine for a school
+project. For a real website, Docker secrets would be safer.
+
+### Docker Network vs Host Network
+
+- With the **host network**, a container uses the same network as your
+  computer. There is no wall between them. Ports can clash.
+- With a **Docker network**, each container gets its own small network.
+  It can find the others by name, without opening its doors to the
+  outside.
+
+This project uses one Docker network, called `inception`. All 3
+containers share it. They find each other by name (`nginx`,
+`wordpress`, `mariadb`), never by IP address. Only NGINX's door (port
+443) is open to the outside. This is safer than the host network.
+
+### Docker Volumes vs Bind Mounts
+
+- A **named volume** is storage that Docker looks after by itself.
+  Docker picks where the files live.
+- A **bind mount** links a folder in the container to a folder you
+  choose on your computer.
+
+The school asks for the data to be saved in one exact place:
+`/home/msabr/data/...`. To do that, and still use the `volumes:` part
+of Docker Compose, this project uses **named volumes with bind-mount
+settings** (`driver_opts: type: none, o: bind, device: ...`). It looks
+like a normal volume in the compose file, but it acts like a bind
+mount: you can see the files right on your computer, at a path you
+know.
+
+## Resources
+
+### Where we learned things
+
+- Docker docs — <https://docs.docker.com/>
+- Docker Compose file reference — <https://docs.docker.com/compose/compose-file/>
+- NGINX docs — <https://nginx.org/en/docs/>
+- WordPress dev docs — <https://developer.wordpress.org/>
+- WP-CLI docs — <https://wp-cli.org/>
+- MariaDB docs — <https://mariadb.com/kb/en/>
+- The 42 Inception subject PDF
+
+### How AI was used
+
+An AI assistant (Claude, by Anthropic) helped with:
+
+- **Fixing bugs** — like WP-CLI not being found, MariaDB folder
+  permission errors, and NGINX filling a shared folder before
+  WordPress could.
+- **Explaining ideas** — simple explanations of Docker networks,
+  volumes vs bind mounts, and secrets vs env variables, used to write
+  the tables in this README.
+- **Writing these docs** — help to plan and write `README.md`,
+  `USER_DOC.md`, and `DEV_DOC.md`, based on the real project files.
+
+The Dockerfiles, the Compose file, and the scripts were written and
+tested by hand. AI was only used to explain things and help write the
+docs — not to write that code.
